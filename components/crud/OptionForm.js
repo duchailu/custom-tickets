@@ -23,16 +23,11 @@ const OptionForm = () => {
     }
   }
 
+  // Enregistre l'option saisie ; renvoie une promesse (échoue si la base refuse ou ne répond pas)
   const addNewOption = () => {
-    if (option1 !== '') {
-      addSelectOption(1, option1)
-    }
-    if (option2 !== '') {
-      addSelectOption(2, option2)
-    }
-    if (option3 !== '') {
-      addSelectOption(3, option3)
-    }
+    const [selectNumber, content] = getOptionData() ?? []
+    if (!selectNumber) return Promise.resolve()
+    return addSelectOption(selectNumber, content)
   }
 
   const clearInputs = () => {
@@ -70,8 +65,9 @@ const OptionForm = () => {
     setOption2('')
   }
 
+  // La confirmation ne s'ouvre que si une option a été saisie
   const handleShowOptionModal = () => {
-    setShowOptionModal(true)
+    if (getOptionData()) setShowOptionModal(true)
   }
 
   const handleHideOptionModal = () => {

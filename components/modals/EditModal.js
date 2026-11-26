@@ -1,6 +1,7 @@
-import { UserAuth } from '@/firebase/firebaseContext'
+import { getDbErrorMessage, UserAuth } from '@/firebase/firebaseContext'
 import { useState } from 'react'
 import { RiCloseCircleLine } from 'react-icons/ri'
+import ErrorMessage from '../ErrorMessage'
 import { useSelectOptions } from '../hooks/useSelectOptions'
 import Select from '../Select'
 import DeleteConfirmationModal from './DeleteConfirmationModal'
@@ -18,11 +19,13 @@ const EditModal = ({ closeModal, ticketId, priority, status, ticket, user, userE
   const [option2, setOption2] = useState(choices[1])
   const [option3, setOption3] = useState(choices[2])
   const [displayConfirmation, setDisplayConfirmation] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const handleUpdateTicket = () => {
-    updateTicket(ticketId, ticketPriority, ticketStatus, ticketContent, user, date, option1, option2, option3).then(
-      closeModal
-    )
+    setSaveError('')
+    updateTicket(ticketId, ticketPriority, ticketStatus, ticketContent, user, date, option1, option2, option3)
+      .then(closeModal)
+      .catch((error) => setSaveError(getDbErrorMessage(error)))
   }
 
   // Bouton de statut (Ouvert = 1, Clos = 0)
@@ -93,6 +96,7 @@ const EditModal = ({ closeModal, ticketId, priority, status, ticket, user, userE
         <div className='mx-auto styled-button-light font-bold mt-6' onClick={handleUpdateTicket}>
           <span>Mise à jour</span>
         </div>
+        <ErrorMessage message={saveError} />
         <div className='mx-auto styled-button-light font-bold mt-6' onClick={() => setDisplayConfirmation(true)}>
           <span>Supprimer Ticket</span>
         </div>
