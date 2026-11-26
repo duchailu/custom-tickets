@@ -1,7 +1,16 @@
-import { UserAuth } from '@/firebase/firebaseContext'
+import { getDbErrorMessage, UserAuth } from '@/firebase/firebaseContext'
+import { useState } from 'react'
+import ErrorMessage from '../ErrorMessage'
 
 const DeleteConfirmationModal = ({ close, ticketId }) => {
   const { removeTicket } = UserAuth()
+  const [error, setError] = useState('')
+
+  // En cas de succès, le ticket disparaît de la liste et ses fenêtres se ferment d'elles-mêmes
+  const confirm = () => {
+    setError('')
+    removeTicket(ticketId).catch((e) => setError(getDbErrorMessage(e)))
+  }
 
   return (
     <div className='top-0 left-0 w-screen h-screen bg-slate-200/75 fixed grid place-content-center z-90 font-raleway'>
@@ -11,21 +20,14 @@ const DeleteConfirmationModal = ({ close, ticketId }) => {
           <span>{ticketId}</span>
         </div>
         <div className='flex flex-row gap-4 justify-evenly'>
-          <div
-            className='styled-button-light'
-            onClick={() => {
-              removeTicket(ticketId)
-            }}>
+          <div className='styled-button-light' onClick={confirm}>
             Confirmer
           </div>
-          <div
-            className='styled-button-light'
-            onClick={() => {
-              close()
-            }}>
+          <div className='styled-button-light' onClick={close}>
             Annuler
           </div>
         </div>
+        <ErrorMessage message={error} />
       </div>
     </div>
   )

@@ -22,6 +22,28 @@ const authErrorMessages = {
 
 const getErrorMessage = (error) => authErrorMessages[error.code] || 'Une erreur est survenue. Réessayez.'
 
+// --- Écritures dans la base : délai maximal et messages d'erreur -----------------
+// Sans réponse du serveur (base désactivée, pas d'internet…), Firebase garde l'écriture
+// en attente sans rien signaler : on abandonne au bout de 10 secondes.
+const WRITE_TIMEOUT_MS = 10000
+
+const withTimeout = (promise) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), WRITE_TIMEOUT_MS)),
+  ])
+
+// Message à afficher quand une écriture (création, modification, suppression) échoue
+export const getDbErrorMessage = (error) => {
+  if (error?.message?.includes('PERMISSION_DENIED')) {
+    return "Enregistrement refusé par la base de données (règles de sécurité Firebase)."
+  }
+  if (error?.message === 'timeout') {
+    return 'La base de données ne répond pas. Vérifiez votre connexion internet et réessayez.'
+  }
+  return "Impossible d'enregistrer. Réessayez."
+}
+
 // Lecture unique d'un chemin de la Realtime Database (null s'il est vide).
 // (onValue sert aux écoutes en temps réel : voir Tickets.js)
 const read = async (path) => (await get(ref(db, path))).val()
@@ -62,28 +84,30 @@ export const UserAuthProvider = ({ children }) => {
     window.location.reload()
   }
 
-  // REALTIME DATABASE
+  // REALTIME DATABASE (chaque écriture échoue au bout de 10 s sans réponse : voir withTimeout)
   // Tickets : tickets/{id} = { ticket, priority (1 à 3), status (1 ouvert, 0 clos), date, user (uid), choice1..3 }
   const addTicket = (ticket, priority, status, choice1, choice2, choice3) =>
-    set(ref(db, 'tickets/' + crypto.randomUUID()), {
-      ticket,
-      priority,
-      status,
-      date: Date.now(),
-      user: auth.currentUser.uid,
-      choice1,
-      choice2,
-      choice3,
-    })
+    withTimeout(
+      set(ref(db, 'tickets/' + crypto.randomUUID()), {
+        ticket,
+        priority,
+        status,
+        date: Date.now(),
+        user: auth.currentUser.uid,
+        choice1,
+        choice2,
+        choice3,
+      })
+    )
 
   const updateTicket = (id, priority, status, ticket, user, date, choice1, choice2, choice3) =>
-    update(ref(db, 'tickets/' + id), { user, date, priority, status, ticket, choice1, choice2, choice3 })
+    withTimeout(update(ref(db, 'tickets/' + id), { user, date, priority, status, ticket, choice1, choice2, choice3 }))
 
-  const removeTicket = (ticketId) => remove(ref(db, 'tickets/' + ticketId))
+  const removeTicket = (ticketId) => withTimeout(remove(ref(db, 'tickets/' + ticketId)))
 
   // Options proposées à la création d'un ticket : select1/, select2/, select3/ = { id: { content } }
   const addSelectOption = (selectNumber, content) =>
-    set(ref(db, `select${selectNumber}/` + crypto.randomUUID()), { content })
+    withTimeout(set(ref(db, `select${selectNumber}/` + crypto.randomUUID()), { content }))
 
   // Renvoie la liste des textes d'options d'un menu (1, 2 ou 3)
   const getSelectOptions = async (selectNumber) =>

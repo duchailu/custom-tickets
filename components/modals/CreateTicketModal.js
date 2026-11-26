@@ -1,6 +1,7 @@
-import { UserAuth } from '@/firebase/firebaseContext'
+import { getDbErrorMessage, UserAuth } from '@/firebase/firebaseContext'
 import { useState } from 'react'
 import { RiCloseCircleLine } from 'react-icons/ri'
+import ErrorMessage from '../ErrorMessage'
 import { useSelectOptions } from '../hooks/useSelectOptions'
 import Select from '../Select'
 import EditPriorityChoice from './EditPriorityChoice'
@@ -16,6 +17,7 @@ const CreateTicketModal = ({ handleHideModal }) => {
   const [option2, setOption2] = useState('')
   const [option3, setOption3] = useState('')
   const [alerts, setAlerts] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const createTicket = () => {
     if (ticket.trim() === '' || priority === null) {
@@ -23,7 +25,10 @@ const CreateTicketModal = ({ handleHideModal }) => {
       return
     }
     // Un nouveau ticket est "ouvert" (status 1)
-    addTicket(ticket, priority, 1, option1, option2, option3).then(handleHideModal)
+    setSaveError('')
+    addTicket(ticket, priority, 1, option1, option2, option3)
+      .then(handleHideModal)
+      .catch((error) => setSaveError(getDbErrorMessage(error)))
   }
 
   return (
@@ -74,6 +79,7 @@ const CreateTicketModal = ({ handleHideModal }) => {
             )}
           </div>
         )}
+        <ErrorMessage message={saveError} />
       </div>
     </div>
   )
