@@ -4,7 +4,7 @@ import AddOptionConfirmationModal from '../modals/AddOptionConfirmationModal'
 import OptionInput from './OptionInput'
 
 const OptionForm = () => {
-  const { addSelect1Option, addSelect2Option, addSelect3Option } = UserAuth()
+  const { addSelectOption } = UserAuth()
 
   const [option1, setOption1] = useState('')
   const [option2, setOption2] = useState('')
@@ -25,13 +25,13 @@ const OptionForm = () => {
 
   const addNewOption = () => {
     if (option1 !== '') {
-      addSelect1Option(option1)
+      addSelectOption(1, option1)
     }
     if (option2 !== '') {
-      addSelect2Option(option2)
+      addSelectOption(2, option2)
     }
     if (option3 !== '') {
-      addSelect3Option(option3)
+      addSelectOption(3, option3)
     }
   }
 

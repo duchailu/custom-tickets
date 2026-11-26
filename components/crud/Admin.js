@@ -4,65 +4,43 @@ import AdminToUserSigninModal from '../modals/AdminToUserSigninModal'
 import OptionForm from './OptionForm'
 import Signup from './Signup'
 
+// Page de l'admin : créer des utilisateurs, ajouter des options, se connecter à un compte
 const Admin = () => {
   const { getUsers } = UserAuth()
 
   const [users, setUsers] = useState(null)
-  const [employees, setEmployees] = useState([])
-  const [itGuys, setItGuys] = useState([])
-  const [adminToUserSigninModal, setAdminToUserSigninModal] = useState(false)
-  const [userEmailSignin, setUserEmailSignin] = useState('')
-
-  const hideAdminToUserSigninModal = () => {
-    resetUserEmailSignin()
-    setAdminToUserSigninModal(false)
-  }
-  const showAdminToUserSigninModal = (temp) => {
-    setUserEmailSignin(temp)
-  }
-
-  const resetUserEmailSignin = () => {
-    setUserEmailSignin('')
-  }
+  const [userEmailSignin, setUserEmailSignin] = useState('') // email choisi pour s'y connecter
 
   useEffect(() => {
-    if (userEmailSignin !== '') {
-      setAdminToUserSigninModal(true)
-    }
-  }, [userEmailSignin])
+    getUsers().then(setUsers)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  useEffect(() => {
-    getUsers().then((response) => setUsers(response))
-  }, [getUsers])
+  const allUsers = Object.values(users ?? {})
+  const itGuys = allUsers.filter((user) => user.userType === 'technicien')
+  const employees = allUsers.filter((user) => user.userType === 'employé')
 
-  useEffect(() => {
-    if (users !== null) {
-      let itGuysTemp = []
-      let employeesTemp = []
-      Object.entries(users).forEach(([userId, user]) => {
-        if (user.userType === 'technicien') {
-          itGuysTemp.push(user)
-          // setItGuys((prev) => [...prev, user])
-        }
-        if (user.userType === 'employé') {
-          employeesTemp.push(user)
-          // setEmployees((prev) => [...prev, user])
-        }
-      })
-      setItGuys(itGuysTemp)
-      setEmployees(employeesTemp)
-    }
-  }, [users])
+  const usersColumn = (title, list) => (
+    <div className='flex flex-col gap-4'>
+      <div className='font-bold'>{title}</div>
+      <div className='users-list'>
+        {list.map((user) => (
+          <div key={user.email} className='users' onClick={() => setUserEmailSignin(user.email)}>
+            {user.email}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <div>
       <div className='flex flex-col mb-10 text-center'>
         <div className='grid place-content-center py-2 font-bold text-xl mx-auto w-[200px]'>ADMIN PAGE</div>
-        {adminToUserSigninModal ? (
+        {userEmailSignin !== '' ? (
           <AdminToUserSigninModal
             userEmail={userEmailSignin}
-            hideAdminToUserSigninModal={hideAdminToUserSigninModal}
-            resetUserEmailSignin={resetUserEmailSignin}
+            hideAdminToUserSigninModal={() => setUserEmailSignin('')}
           />
         ) : null}
         <div className='flex flex-row gap-16 justify-center'>
@@ -75,30 +53,8 @@ const Admin = () => {
           <div className='font-bold mb-4'>Users:</div>
           {users ? (
             <div className='flex flex-row justify-evenly w-[50%] mx-auto'>
-              <div className='flex flex-col gap-4'>
-                <div className='font-bold'>Techniciens</div>
-                <div className='users-list'>
-                  {itGuys.map((element, elementId) => {
-                    return (
-                      <div key={elementId} className='users' onClick={() => showAdminToUserSigninModal(element.email)}>
-                        {element.email}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-              <div className='flex flex-col gap-4'>
-                <div className='font-bold'>Employés</div>
-                <div className='users-list'>
-                  {employees.map((element, elementId) => {
-                    return (
-                      <div key={elementId} className='users' onClick={() => showAdminToUserSigninModal(element.email)}>
-                        {element.email}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              {usersColumn('Techniciens', itGuys)}
+              {usersColumn('Employés', employees)}
             </div>
           ) : (
             <div>No Users...</div>
