@@ -11,7 +11,7 @@ const OptionInput = ({ title, data, change, focus, escape }) => {
         onFocus={focus}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
-            escape
+            escape()
           }
         }}
       />

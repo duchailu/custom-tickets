@@ -1,0 +1,7 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # Même version de Node qu en local (voir .nvmrc)
+  NODE_VERSION = "26"

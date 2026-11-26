@@ -7,7 +7,7 @@ const Select = ({ title, data, click, selectedValue }) => {
         onChange={(e) => {
           click(e.target.value)
         }}
-        value={selectedValue}>
+        value={selectedValue ?? ''}>
         <option disabled value=''>
           {/* Display a default option when no value is selected */}
         </option>

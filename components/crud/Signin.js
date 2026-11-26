@@ -1,5 +1,5 @@
 import { UserAuth } from '@/firebase/firebaseContext'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 const Signin = () => {
   const { signin, errorMessage } = UserAuth()
@@ -23,7 +23,6 @@ const Signin = () => {
     setPassword('')
   }
 
-  useEffect(() => {}, [])
 
   return (
     <div className='authentification-container my-4'>

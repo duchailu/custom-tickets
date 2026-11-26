@@ -1,237 +1,115 @@
-import { createUserWithEmailAndPassword, deleteUser, signInWithEmailAndPassword, signOut } from 'firebase/auth'
-import { onValue, ref, remove, set, update } from 'firebase/database'
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { get, ref, remove, set, update } from 'firebase/database'
 import { useRouter } from 'next/router'
-import { createContext, useContext, useState } from 'react'
-import { v4 as uuidv4 } from 'uuid'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { auth, db } from './Firebase'
 
 const UserContext = createContext()
 
+// Messages en français pour les erreurs de Firebase Authentication (codes "auth/...")
+// Depuis 2023, Firebase répond "invalid-credential" pour un mauvais email OU mot de passe.
+const authErrorMessages = {
+  'auth/email-already-in-use': 'Cet Email est déjà utilisé.',
+  'auth/invalid-email': "Cet Email n'est pas valide.",
+  'auth/missing-password': 'Veuillez saisir un mot de passe.',
+  'auth/weak-password': 'Le mot de passe doit contenir au moins 6 caractères.',
+  'auth/invalid-credential': 'Email ou mot de passe incorrect.',
+  'auth/wrong-password': 'Email ou mot de passe incorrect.',
+  'auth/user-not-found': 'Email ou mot de passe incorrect.',
+  'auth/too-many-requests': 'Trop de tentatives. Réessayez dans quelques minutes.',
+  'auth/network-request-failed': 'Problème de connexion internet. Réessayez.',
+}
+
+const getErrorMessage = (error) => authErrorMessages[error.code] || 'Une erreur est survenue. Réessayez.'
+
+// Lecture unique d'un chemin de la Realtime Database (null s'il est vide).
+// (onValue sert aux écoutes en temps réel : voir Tickets.js)
+const read = async (path) => (await get(ref(db, path))).val()
+
 export const UserAuthProvider = ({ children }) => {
   const router = useRouter()
-
+  const [user, setUser] = useState(null)
   const [errorMessage, setErrorMessage] = useState('')
 
-  function getErrorMessage(temp) {
-    if (temp === 'Firebase: Error (auth/email-already-in-use).') {
-      setErrorMessage('Cet Email est déjà utilisé.')
-    }
-    if (temp === 'Firebase: Error (auth/invalid-email).') {
-      setErrorMessage("Cet Email n'est pas valide.")
-    }
-    if (temp === 'Firebase: Error (auth/wrong-password).') {
-      setErrorMessage('Mot de passe non valable.')
-    }
-    if (temp === 'Firebase: Error (auth/user-not-found).') {
-      setErrorMessage("Cet utilisateur n'existe pas.")
-    }
-  }
+  // Une seule écoute de la connexion pour toute l'app
+  useEffect(() => onAuthStateChanged(auth, setUser), [])
 
-  // AUTHENTIFICATION METHODS
-  const signup = (email, password, userType) => {
-    createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        console.log(`${userCredential.user.email} was successfully created and signed in`)
-        // setDoc(doc(db, 'users', userCredential.user.email), {})
-        createUser(userCredential.user.uid, email, userType).then((response) => {
-          console.log(`${email} created`)
-        })
-      })
-      .catch((error) => {
-        getErrorMessage(error.message)
-      })
-
-    if (errorMessage === '') {
+  // AUTHENTIFICATION
+  // Création d'un utilisateur par l'admin. Attention : Firebase connecte aussitôt le nouveau compte.
+  const signup = async (email, password, userType) => {
+    try {
+      const { user: newUser } = await createUserWithEmailAndPassword(auth, email, password)
+      await createUser(newUser.uid, email, userType)
+      setErrorMessage('')
       router.push('/')
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
     }
   }
-  const signin = (email, password) => {
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        if (auth.currentUser) {
-          console.log(`${userCredential.user.email} was successfully signed in`)
-        }
-      })
-      .catch((error) => {
-        getErrorMessage(error.message)
-      })
-    if (errorMessage === '') {
+
+  const signin = async (email, password) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+      setErrorMessage('')
       router.push('/')
+    } catch (error) {
+      setErrorMessage(getErrorMessage(error))
     }
   }
-  const signout = () => {
-    signOut(auth).then(() => {
-      console.log('User was successfully signed out')
-      window.location.reload()
-    })
+
+  const signout = async () => {
+    await signOut(auth)
+    window.location.reload()
   }
 
-  // REALTIME DATABASE METHODS
-
-  const addTicket = async (ticket, priority, status, choice1, choice2, choice3) => {
-    const ticketRef = ref(db, 'tickets/' + uuidv4())
-    const date = Date.now()
-    await set(ticketRef, {
+  // REALTIME DATABASE
+  // Tickets : tickets/{id} = { ticket, priority (1 à 3), status (1 ouvert, 0 clos), date, user (uid), choice1..3 }
+  const addTicket = (ticket, priority, status, choice1, choice2, choice3) =>
+    set(ref(db, 'tickets/' + crypto.randomUUID()), {
       ticket,
       priority,
       status,
-      date,
+      date: Date.now(),
       user: auth.currentUser.uid,
       choice1,
       choice2,
       choice3,
     })
-  }
 
-  const addSelect1Option = async (content) => {
-    const select1Ref = ref(db, 'select1/' + uuidv4())
-    await set(select1Ref, { content })
-  }
+  const updateTicket = (id, priority, status, ticket, user, date, choice1, choice2, choice3) =>
+    update(ref(db, 'tickets/' + id), { user, date, priority, status, ticket, choice1, choice2, choice3 })
 
-  const getSelect1Options = async () => {
-    const select1OptionsRef = ref(db, 'select1/')
-    return new Promise((resolve) => {
-      onValue(select1OptionsRef, (snapshot) => {
-        resolve(snapshot.val())
-      })
-    })
-  }
+  const removeTicket = (ticketId) => remove(ref(db, 'tickets/' + ticketId))
 
-  const addSelect2Option = async (content) => {
-    const select2Ref = ref(db, 'select2/' + uuidv4())
-    await set(select2Ref, { content })
-  }
+  // Options proposées à la création d'un ticket : select1/, select2/, select3/ = { id: { content } }
+  const addSelectOption = (selectNumber, content) =>
+    set(ref(db, `select${selectNumber}/` + crypto.randomUUID()), { content })
 
-  const getSelect2Options = async () => {
-    const select2OptionsRef = ref(db, 'select2/')
-    return new Promise((resolve) => {
-      onValue(select2OptionsRef, (snapshot) => {
-        resolve(snapshot.val())
-      })
-    })
-  }
+  // Renvoie la liste des textes d'options d'un menu (1, 2 ou 3)
+  const getSelectOptions = async (selectNumber) =>
+    Object.values((await read(`select${selectNumber}/`)) ?? {}).map((option) => option.content)
 
-  const addSelect3Option = async (content) => {
-    const select3Ref = ref(db, 'select3/' + uuidv4())
-    await set(select3Ref, { content })
-  }
-
-  const getSelect3Options = async () => {
-    const select3OptionsRef = ref(db, 'select3/')
-    return new Promise((resolve) => {
-      onValue(select3OptionsRef, (snapshot) => {
-        resolve(snapshot.val())
-      })
-    })
-  }
-
-  const createUser = async (userId, email, userType) => {
-    const userRef = ref(db, 'users/' + userId)
-    await set(userRef, {
-      email,
-      userType,
-    })
-  }
-  const getUser = async (userId) => {
-    const userRef = ref(db, 'users/' + userId)
-    return new Promise((resolve) => {
-      onValue(userRef, (snapshot) => {
-        resolve(snapshot.val())
-      })
-    })
-  }
-
-  const getUsers = async () => {
-    const userRef = ref(db, 'users/')
-    return new Promise((resolve) => {
-      onValue(userRef, (snapshot) => {
-        resolve(snapshot.val())
-      })
-    })
-  }
-
-  const getTickets = async () => {
-    const ticketsRef = ref(db, 'tickets/')
-    return new Promise((resolve) => {
-      onValue(ticketsRef, (snapshot) => {
-        resolve(snapshot.val())
-      })
-    })
-  }
-
-  const removeUser = (userId) => {
-    if (auth.currentUser) {
-      deleteUser(auth.currentUser)
-        .then(() => {
-          // User deleted.
-          remove(ref(db, '/users/' + userId))
-        })
-        .catch((error) => {
-          // An error ocurred
-          console.log(error.message)
-        })
-    }
-  }
-
-  const removeTicket = async (ticketId) => {
-    const ticketRef = ref(db, 'tickets/' + ticketId)
-    remove(ticketRef)
-  }
-
-  const getTicket = async (ticketId) => {
-    const ticketRef = ref(db, 'tickets/' + ticketId)
-    return new Promise((resolve) => {
-      onValue(ticketRef, (snapshot) => {
-        resolve(snapshot.val())
-      })
-    })
-  }
-
-  const updateTicket = async (
-    id,
-    ticketPriority,
-    ticketStatus,
-    ticketContent,
-    user,
-    date,
-    option1,
-    option2,
-    option3
-  ) => {
-    const ticketRef = ref(db, 'tickets/' + id)
-    const priority = ticketPriority
-    const status = ticketStatus
-    const ticket = ticketContent
-    const choice1 = option1
-    const choice2 = option2
-    const choice3 = option3
-    const data = { user, date, priority, status, ticket, choice1, choice2, choice3 }
-    // await update(ticketRef, data)
-    await update(ticketRef, data)
-  }
+  // Utilisateurs : users/{uid} = { email, userType ('employé' ou 'technicien') }
+  const createUser = (userId, email, userType) => set(ref(db, 'users/' + userId), { email, userType })
+  const getUser = (userId) => read('users/' + userId)
+  const getUsers = () => read('users/')
 
   return (
     <UserContext.Provider
       value={{
+        user,
         signup,
         signin,
         signout,
         errorMessage,
         setErrorMessage,
-        removeUser,
         addTicket,
+        updateTicket,
+        removeTicket,
+        addSelectOption,
+        getSelectOptions,
         getUser,
         getUsers,
-        getTickets,
-        removeTicket,
-        getTicket,
-        updateTicket,
-        addSelect1Option,
-        getSelect1Options,
-        addSelect2Option,
-        getSelect2Options,
-        addSelect3Option,
-        getSelect3Options,
       }}>
       {children}
     </UserContext.Provider>

@@ -1,71 +1,30 @@
 import { UserAuth } from '@/firebase/firebaseContext'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { RiCloseCircleLine } from 'react-icons/ri'
+import { useSelectOptions } from '../hooks/useSelectOptions'
 import Select from '../Select'
 import EditPriorityChoice from './EditPriorityChoice'
 
+// Fenêtre de création d'un ticket
 const CreateTicketModal = ({ handleHideModal }) => {
-  const { addTicket, getSelect1Options, getSelect2Options, getSelect3Options } = UserAuth()
+  const { addTicket } = UserAuth()
+  const [select1, select2, select3] = useSelectOptions()
 
   const [ticket, setTicket] = useState('')
   const [priority, setPriority] = useState(null)
-  const [select1, setSelect1] = useState([])
-  const [select2, setSelect2] = useState([])
-  const [select3, setSelect3] = useState([])
   const [option1, setOption1] = useState('')
   const [option2, setOption2] = useState('')
   const [option3, setOption3] = useState('')
   const [alerts, setAlerts] = useState(false)
 
-  const handleChangeTicket = (e) => {
-    setTicket(e.target.value)
-  }
-
-  const handleChangePriority = (temp) => {
-    setPriority(temp)
-  }
-
-  const handleOption1 = (data) => {
-    setOption1(data)
-  }
-
-  const handleOption2 = (data) => {
-    setOption2(data)
-  }
-
-  const handleOption3 = (data) => {
-    setOption3(data)
-  }
-
   const createTicket = () => {
-    if (ticket.trim() === '') {
+    if (ticket.trim() === '' || priority === null) {
       setAlerts(true)
       return
     }
-
-    if (priority === null) {
-      setAlerts(true)
-      return
-    }
-
-    addTicket(ticket, priority, 1, option1, option2, option3).then((response) => {
-      handleHideModal()
-    })
+    // Un nouveau ticket est "ouvert" (status 1)
+    addTicket(ticket, priority, 1, option1, option2, option3).then(handleHideModal)
   }
-
-  const handleGetSelectOptions = async () => {
-    const response1 = await getSelect1Options()
-    const response2 = await getSelect2Options()
-    const response3 = await getSelect3Options()
-
-    setSelect1(Object.values(response1).map((value) => value.content))
-    setSelect2(Object.values(response2).map((value) => value.content))
-    setSelect3(Object.values(response3).map((value) => value.content))
-  }
-
-  useEffect(() => {
-    handleGetSelectOptions()
-  }, [])
 
   return (
     <div className='top-0 left-0 w-screen h-screen bg-slate-200/75 fixed grid place-content-center z-50 font-raleway'>
@@ -82,7 +41,7 @@ const CreateTicketModal = ({ handleHideModal }) => {
             className='text-center rounded-lg w-full shadow-md border border-slate-400 h-[30px]'
             value={ticket}
             placeholder='...'
-            onChange={handleChangeTicket}
+            onChange={(e) => setTicket(e.target.value)}
           />
         </div>
         <div className='flex flex-col gap-3'>
@@ -90,16 +49,16 @@ const CreateTicketModal = ({ handleHideModal }) => {
             <span>Priority</span>
           </div>
           <div className='flex flex-row gap-6 justify-center'>
-            <EditPriorityChoice click={handleChangePriority} priority={1} current={priority} />
-            <EditPriorityChoice click={handleChangePriority} priority={2} current={priority} />
-            <EditPriorityChoice click={handleChangePriority} priority={3} current={priority} />
+            <EditPriorityChoice click={setPriority} priority={1} current={priority} />
+            <EditPriorityChoice click={setPriority} priority={2} current={priority} />
+            <EditPriorityChoice click={setPriority} priority={3} current={priority} />
           </div>
         </div>
 
         <div className='flex flex-row gap-2 justify-center'>
-          <Select data={select1} title={'Option 1'} click={handleOption1} selectedValue={option1} />
-          <Select data={select2} title={'Option 2'} click={handleOption2} selectedValue={option2} />
-          <Select data={select3} title={'Option 3'} click={handleOption3} selectedValue={option3} />
+          <Select data={select1} title={'Option 1'} click={setOption1} selectedValue={option1} />
+          <Select data={select2} title={'Option 2'} click={setOption2} selectedValue={option2} />
+          <Select data={select3} title={'Option 3'} click={setOption3} selectedValue={option3} />
         </div>
 
         <div className='button w-[150px] mx-auto mt-8' onClick={createTicket}>
